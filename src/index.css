@@ -125,3 +125,101 @@ label { color: var(--muted); font-size: 12px; display:block; margin-bottom: 6px;
   justify-content: space-between;
   border-top: 1px solid var(--border);
 }
+
+/* ---------------- Mobile / small screens ---------------- */
+@media (max-width: 820px) {
+  .main {
+    width: min(1100px, 94vw);
+    margin: 12px auto;
+  }
+
+  /* Layout: turn horizontal rows into vertical stacks */
+  .row {
+    flex-direction: column;
+  }
+
+  /* Allow specific rows (buttons) to wrap instead of stacking */
+  .row.wrap {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .row.wrap > * {
+    flex: 1 1 140px;
+  }
+
+  /* Grids become single column */
+  .grid2,
+  .grid3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Step bar becomes horizontal scroll instead of wrapping into many lines */
+  .stepbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+  .step {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  /* Crop area: use viewport height, not fixed pixels */
+  .cropArea {
+    height: 52vh;
+    min-height: 320px;
+  }
+
+  /* Right-side panels with inline width styles should behave */
+  .rightPane,
+  .sidebar {
+    width: 100% !important;
+  }
+
+  /* Make canvases never overflow the viewport */
+  .previewCanvas {
+    max-height: 46vh;
+  }
+
+  /* Background cards shouldn't force tall min-height on phones */
+  .bgCard {
+    min-height: auto;
+  }
+  .bgCanvas {
+    max-height: 46vh;
+  }
+
+  /* Buttons feel better full width by default on mobile */
+  .btn {
+    width: 100%;
+  }
+
+  /* But in rows marked wrap, let them share the row */
+  .row.wrap .btn {
+    width: auto;
+  }
+}
+
+/* Tiny phones */
+@media (max-width: 420px) {
+  .topbar {
+    padding: 12px 12px;
+  }
+  .brand {
+    font-size: 14px;
+  }
+  .hint {
+    display: none;
+  }
+}
+
+/* details/summary styling used in StepSize */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}

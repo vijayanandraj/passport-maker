@@ -79,14 +79,13 @@ export default function StepBackground() {
     }
   };
 
-
   useEffect(() => {
-  if (imageBitmap && croppedAreaPixels) {
-    void renderPreviews();
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (imageBitmap && croppedAreaPixels) {
+      void renderPreviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageBitmap, croppedAreaPixels, photo.width, photo.height, photo.dpi, photo.unit]);
-  
+
   const selectMode = (mode: PreviewKind) => {
     setBg({ mode });
   };
@@ -115,7 +114,8 @@ export default function StepBackground() {
         <div className="col grow">
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Select Background Style</div>
 
-          <div className="row" style={{ gap: 14 }}>
+          {/* changed: row -> row wrap so cards can sit side-by-side and wrap */}
+          <div className="row wrap" style={{ gap: 14 }}>
             {/* Original card */}
             <div
               className={`bgCard ${bg.mode === "ORIGINAL" ? "active" : ""}`}
@@ -152,7 +152,8 @@ export default function StepBackground() {
             </div>
           </div>
 
-          <div className="row" style={{ marginTop: 12, alignItems: "center", justifyContent: "space-between" }}>
+          {/* changed: row -> row wrap so checkbox + button behave better */}
+          <div className="row wrap" style={{ marginTop: 12, alignItems: "center", justifyContent: "space-between" }}>
             <label style={{ margin: 0 }}>
               <input
                 type="checkbox"
@@ -182,7 +183,8 @@ export default function StepBackground() {
             </div>
           </div>
 
-          <div className="row" style={{ marginTop: 12 }}>
+          {/* changed: row -> row wrap for buttons */}
+          <div className="row wrap" style={{ marginTop: 12 }}>
             <button className="btn" onClick={() => setStep(2)}>Back</button>
             <button className="btn primary" onClick={() => setStep(4)}>Save & Next</button>
           </div>

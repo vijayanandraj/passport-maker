@@ -26,7 +26,7 @@ export default function StepCrop() {
 
   const onCropComplete = useCallback((_: any, croppedAreaPixels: any) => {
     setCroppedAreaPixels(croppedAreaPixels);
-    console.log("croppedAreaPixels", croppedAreaPixels);
+    // console.log("croppedAreaPixels", croppedAreaPixels);
   }, [setCroppedAreaPixels]);
 
   const renderPreview = useCallback(() => {
@@ -87,13 +87,10 @@ export default function StepCrop() {
         return;
       }
 
-      // Center the crop around face center (approx mapping to crop %)
-      
-
       const faceCx = (face.x + face.w / 2) / c.width;
       const faceCy = (face.y + face.h / 2) / c.height;
 
-        // Head sizing: smaller number => zoom out => more shoulders
+      // Head sizing: smaller number => zoom out => more shoulders
       const desiredFaceFrac = 0.40; // try 0.38..0.42
       const faceFrac = face.h / c.height;
       const zoom = Math.max(1, Math.min(3, faceFrac > 0 ? desiredFaceFrac / faceFrac : 1));
@@ -138,25 +135,30 @@ export default function StepCrop() {
           />
         </div>
 
-        <div className="row" style={{ marginTop: 10 }}>
+        {/* changed: row -> row wrap */}
+        <div className="row wrap" style={{ marginTop: 10 }}>
           <button className="btn" onClick={() => setStep(1)}>Back</button>
           <button className="btn good" onClick={doAutoCenterFace} disabled={!!busy}>Auto Center Face</button>
           <button className="btn good" onClick={doAutoEnhance} disabled={!!busy}>Auto Enhance</button>
-                  
-          <button  className="btn primary"  onClick={() => {
-                // If user never moved the crop, onCropComplete might not have fired yet.
-                // So we nudge zoom slightly to force Cropper to compute pixels, then go next.
-                setCrop({ zoom: crop.zoom + 0.0001 });
-                setTimeout(() => setStep(3), 0);
-            }}>
-  Save & Next
-</button>
+
+          <button
+            className="btn primary"
+            onClick={() => {
+              // If user never moved the crop, onCropComplete might not have fired yet.
+              // So we nudge zoom slightly to force Cropper to compute pixels, then go next.
+              setCrop({ zoom: crop.zoom + 0.0001 });
+              setTimeout(() => setStep(3), 0);
+            }}
+          >
+            Save & Next
+          </button>
         </div>
 
         {busy && <div className="small" style={{ marginTop: 8 }}>{busy}</div>}
       </div>
 
-      <div className="col" style={{ width: 340 }}>
+      {/* changed: add rightPane class */}
+      <div className="col rightPane" style={{ width: 340 }}>
         <div className="card">
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Adjustments</div>
           <Slider label="Brightness" value={adj.brightness} min={-100} max={100} onChange={(v) => setAdj({ brightness: v, autoEnhanced: false })} />

@@ -18,7 +18,11 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-async function canvasToBlob(canvas: HTMLCanvasElement, format: "image/png" | "image/jpeg", quality = 0.92): Promise<Blob> {
+async function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  format: "image/png" | "image/jpeg",
+  quality = 0.92
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), format, quality);
   });
@@ -129,11 +133,14 @@ export default function StepDownload() {
       <div className="col grow">
         <div className="card">
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Online submission (single photo)</div>
-          <div className="row">
+
+          {/* changed: row -> row wrap */}
+          <div className="row wrap">
             <button className="btn good" onClick={() => void renderPreview()} disabled={!!busy}>Preview</button>
             <button className="btn primary" onClick={() => void downloadSingle("png")} disabled={!!busy}>Download PNG</button>
             <button className="btn primary" onClick={() => void downloadSingle("jpeg")} disabled={!!busy}>Download JPEG</button>
           </div>
+
           <div className="small" style={{ marginTop: 8 }}>
             Output: {outPx.w} x {outPx.h}px at {photo.dpi} DPI
           </div>
@@ -159,14 +166,25 @@ export default function StepDownload() {
 
             <div>
               <label>Sheet DPI</label>
-              <input className="input" type="number" value={sheet.dpi} min={72} max={600}
-                onChange={(e) => setSheet({ dpi: Number(e.target.value) })} />
+              <input
+                className="input"
+                type="number"
+                value={sheet.dpi}
+                min={72}
+                max={600}
+                onChange={(e) => setSheet({ dpi: Number(e.target.value) })}
+              />
             </div>
 
             <div>
               <label>Requested Count</label>
-              <input className="input" type="number" value={sheet.requestedCount} min={1}
-                onChange={(e) => setSheet({ requestedCount: Number(e.target.value) })} />
+              <input
+                className="input"
+                type="number"
+                value={sheet.requestedCount}
+                min={1}
+                onChange={(e) => setSheet({ requestedCount: Number(e.target.value) })}
+              />
               <div className="small">Max fit (last render): {maxCount || "unknown"}</div>
             </div>
 
@@ -174,13 +192,21 @@ export default function StepDownload() {
               <>
                 <div>
                   <label>Custom Width</label>
-                  <input className="input" type="number" value={sheet.customWidth ?? 210}
-                    onChange={(e) => setSheet({ customWidth: Number(e.target.value) })} />
+                  <input
+                    className="input"
+                    type="number"
+                    value={sheet.customWidth ?? 210}
+                    onChange={(e) => setSheet({ customWidth: Number(e.target.value) })}
+                  />
                 </div>
                 <div>
                   <label>Custom Height</label>
-                  <input className="input" type="number" value={sheet.customHeight ?? 297}
-                    onChange={(e) => setSheet({ customHeight: Number(e.target.value) })} />
+                  <input
+                    className="input"
+                    type="number"
+                    value={sheet.customHeight ?? 297}
+                    onChange={(e) => setSheet({ customHeight: Number(e.target.value) })}
+                  />
                 </div>
                 <div>
                   <label>Unit</label>
@@ -196,29 +222,50 @@ export default function StepDownload() {
 
             <div>
               <label>Margin (mm)</label>
-              <input className="input" type="number" value={sheet.marginMm} min={0} max={20}
-                onChange={(e) => setSheet({ marginMm: Number(e.target.value) })} />
+              <input
+                className="input"
+                type="number"
+                value={sheet.marginMm}
+                min={0}
+                max={20}
+                onChange={(e) => setSheet({ marginMm: Number(e.target.value) })}
+              />
             </div>
+
             <div>
               <label>Spacing (mm)</label>
-              <input className="input" type="number" value={sheet.spacingMm} min={0} max={10}
-                onChange={(e) => setSheet({ spacingMm: Number(e.target.value) })} />
+              <input
+                className="input"
+                type="number"
+                value={sheet.spacingMm}
+                min={0}
+                max={10}
+                onChange={(e) => setSheet({ spacingMm: Number(e.target.value) })}
+              />
             </div>
+
             <div>
               <label>
-                <input type="checkbox" checked={sheet.cutLines} onChange={(e) => setSheet({ cutLines: e.target.checked })} style={{ marginRight: 8 }} />
+                <input
+                  type="checkbox"
+                  checked={sheet.cutLines}
+                  onChange={(e) => setSheet({ cutLines: e.target.checked })}
+                  style={{ marginRight: 8 }}
+                />
                 Cut lines
               </label>
             </div>
           </div>
 
-          <div className="row" style={{ marginTop: 10 }}>
+          {/* changed: row -> row wrap */}
+          <div className="row wrap" style={{ marginTop: 10 }}>
             <button className="btn primary" onClick={() => void downloadSheet("png")} disabled={!!busy}>Download Sheet PNG</button>
             <button className="btn primary" onClick={() => void downloadSheet("jpeg")} disabled={!!busy}>Download Sheet JPEG</button>
           </div>
         </div>
 
-        <div className="row" style={{ marginTop: 10 }}>
+        {/* changed: row -> row wrap */}
+        <div className="row wrap" style={{ marginTop: 10 }}>
           <button className="btn" onClick={() => setStep(3)}>Back</button>
           <button className="btn danger" onClick={() => setStep(1)}>Start Over</button>
         </div>
@@ -226,7 +273,8 @@ export default function StepDownload() {
         {busy && <div className="small" style={{ marginTop: 8 }}>{busy}</div>}
       </div>
 
-      <div className="col" style={{ width: 320 }}>
+      {/* changed: add sidebar class */}
+      <div className="col sidebar" style={{ width: 320 }}>
         <div className="card">
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Quick sanity checks</div>
           <div className="small">
