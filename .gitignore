@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local test photos (personal images - never commit)
+test-images
+public/test-images
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
