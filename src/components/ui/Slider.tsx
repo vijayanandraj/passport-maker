@@ -10,7 +10,7 @@ type Props = {
 export default function Slider({ label, value, min, max, step = 1, onChange }: Props) {
   return (
     <div>
-      <label>{label}: <span style={{ color: "var(--text)" }}>{value}</span></label>
+      <label>{label}: <span className="mono" style={{ color: "var(--ink)" }}>{value}</span></label>
       <input
         className="input"
         type="range"

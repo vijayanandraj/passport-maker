@@ -1,9 +1,16 @@
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import { useAppStore } from "../state/store";
 import StepSize from "./steps/StepSize";
 import StepCrop from "./steps/StepCrop";
 import StepBackground from "./steps/StepBackground";
 import StepDownload from "./steps/StepDownload";
+
+const STEPS: Array<{ id: 1 | 2 | 3 | 4; label: string }> = [
+  { id: 1, label: "Size" },
+  { id: 2, label: "Crop" },
+  { id: 3, label: "Background" },
+  { id: 4, label: "Download" }
+];
 
 export default function Wizard() {
   const step = useAppStore(s => s.step);
@@ -16,12 +23,22 @@ export default function Wizard() {
 
   return (
     <div className="card">
-      <div className="stepbar">
-        <div className={`step ${step === 1 ? "active" : ""}`} onClick={() => setStep(1)}>1) Size</div>
-        <div className={`step ${step === 2 ? "active" : ""}`} onClick={() => setStep(2)}>2) Crop</div>
-        <div className={`step ${step === 3 ? "active" : ""}`} onClick={() => setStep(3)}>3) Background</div>
-        <div className={`step ${step === 4 ? "active" : ""}`} onClick={() => setStep(4)}>4) Download</div>
-      </div>
+      <nav className="stepper" aria-label="Wizard steps">
+        {STEPS.map((s, i) => (
+          <Fragment key={s.id}>
+            <button
+              type="button"
+              className={`stepnode ${step === s.id ? "active" : ""}`}
+              aria-current={step === s.id ? "step" : undefined}
+              onClick={() => setStep(s.id)}
+            >
+              <span className="num mono">{s.id}</span>
+              <span className="stepLabel">{s.label}</span>
+            </button>
+            {i < STEPS.length - 1 && <span className="stepline" aria-hidden="true" />}
+          </Fragment>
+        ))}
+      </nav>
 
       {step === 1 && <StepSize />}
       {step === 2 && <StepCrop />}
@@ -30,7 +47,3 @@ export default function Wizard() {
     </div>
   );
 }
-
-// export default function Wizard() {
-//   return <div>Wizard OK</div>;
-// }

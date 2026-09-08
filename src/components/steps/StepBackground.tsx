@@ -7,6 +7,7 @@ import { getCroppedCanvas } from "../../utils/cropper";
 import { applyAdjustmentsToImageData } from "../../utils/image";
 import { segmentCanvas } from "../../utils/mediapipe";
 import { compositeWithMask } from "../../utils/background";
+import CornerTicks from "../ui/CornerTicks";
 
 type PreviewKind = "ORIGINAL" | "REMOVED";
 
@@ -65,7 +66,7 @@ export default function StepBackground() {
       // REMOVED preview (segmentation)
       {
         const mask = await segmentCanvas(base);
-        const removed = compositeWithMask(base, mask.data, mask.width, mask.height, bg.color, bg.featherPx, bg.dehalo);
+        const removed = compositeWithMask(base, mask.data, mask.width, mask.height, bg.color, bg.featherPx, bg.edgeTighten);
 
         const c = remRef.current;
         c.width = removed.width;
@@ -100,29 +101,32 @@ export default function StepBackground() {
     await renderPreviews();
   };
 
-  const onDehaloChange = async (v: number) => {
-    setBg({ dehalo: v / 100 });
+  const onEdgeTightenChange = async (v: number) => {
+    setBg({ edgeTighten: v / 100 });
     await renderPreviews();
   };
 
-  if (!imageBitmap) return <div className="small">Upload an image in Step 0/1 first.</div>;
-  if (!croppedAreaPixels) return <div className="small">Finish crop in Step 2 first.</div>;
+  if (!imageBitmap) return <div className="small">Upload an image in Step 1 first.</div>;
+  if (!croppedAreaPixels) return <div className="small">Finish cropping in Step 2 first.</div>;
 
   return (
     <div className="col">
       <div className="row" style={{ alignItems: "flex-start" }}>
         <div className="col grow">
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Select Background Style</div>
+          <div className="sectionTitle">Select a background style</div>
 
-          {/* changed: row -> row wrap so cards can sit side-by-side and wrap */}
           <div className="row wrap" style={{ gap: 14 }}>
             {/* Original card */}
             <div
               className={`bgCard ${bg.mode === "ORIGINAL" ? "active" : ""}`}
               onClick={() => selectMode("ORIGINAL")}
             >
-              <div className="bgCardTitle">Original</div>
+              <div className="bgCardTitleRow">
+                <div className="bgCardTitle">Keep original</div>
+                {bg.mode === "ORIGINAL" && <div className="bgSelectedTag">Selected</div>}
+              </div>
               <div className="bgCardBody">
+                <CornerTicks />
                 <canvas ref={origRef} className="bgCanvas" />
               </div>
             </div>
@@ -133,16 +137,17 @@ export default function StepBackground() {
               onClick={() => selectMode("REMOVED")}
             >
               <div className="bgCardTitleRow">
-                <div className="bgCardTitle">Background</div>
+                <div className="bgCardTitle">Background removed</div>
                 {bg.mode === "REMOVED" && <div className="bgSelectedTag">Selected</div>}
               </div>
 
               <div className="bgCardBody">
+                <CornerTicks />
                 <canvas ref={remRef} className="bgCanvas" />
               </div>
 
               <div className="bgCardFooter" onClick={(e) => e.stopPropagation()}>
-                <label style={{ margin: 0 }}>BG Color</label>
+                <label style={{ margin: 0 }}>Background color</label>
                 <input
                   type="color"
                   value={bg.color}
@@ -152,41 +157,30 @@ export default function StepBackground() {
             </div>
           </div>
 
-          {/* changed: row -> row wrap so checkbox + button behave better */}
-          <div className="row wrap" style={{ marginTop: 12, alignItems: "center", justifyContent: "space-between" }}>
-            <label style={{ margin: 0 }}>
-              <input
-                type="checkbox"
-                checked={bg.writeNameDate}
-                onChange={(e) => setBg({ writeNameDate: e.target.checked })}
-                style={{ marginRight: 8 }}
-              />
-              Write Name & Date on Image
-            </label>
-
+          <div className="row wrap" style={{ marginTop: 12, justifyContent: "flex-end" }}>
             <button className="btn" onClick={() => void renderPreviews()} disabled={!!busy}>
-              Refresh Preview
+              Refresh preview
             </button>
           </div>
 
           <div className="card" style={{ marginTop: 12 }}>
             <div className="grid2">
               <div>
-                <Slider label="Feather Edge (px)" value={bg.featherPx} min={0} max={3} step={1} onChange={(v) => void onFeatherChange(v)} />
+                <Slider label="Soften edge" value={bg.featherPx} min={0} max={3} step={1} onChange={(v) => void onFeatherChange(v)} />
               </div>
               <div>
-                <Slider label="Dehalo" value={Math.round(bg.dehalo * 100)} min={0} max={100} step={5} onChange={(v) => void onDehaloChange(v)} />
+                <Slider label="Trim edge" value={Math.round(bg.edgeTighten * 100)} min={0} max={100} step={5} onChange={(v) => void onEdgeTightenChange(v)} />
               </div>
             </div>
             <div className="small" style={{ marginTop: 6 }}>
-              Tip: Off-white (#f8f8f8) often looks more natural than pure white.
+              Raise Trim edge only if a rim of the old background still shows — it thins fine hair as it climbs.
+              Off-white (#f8f8f8) often looks more natural than pure white.
             </div>
           </div>
 
-          {/* changed: row -> row wrap for buttons */}
-          <div className="row wrap" style={{ marginTop: 12 }}>
+          <div className="actionRow" style={{ marginTop: 12 }}>
             <button className="btn" onClick={() => setStep(2)}>Back</button>
-            <button className="btn primary" onClick={() => setStep(4)}>Save & Next</button>
+            <button className="btn primary grow-action" onClick={() => setStep(4)}>Save & next</button>
           </div>
 
           {busy && <div className="small" style={{ marginTop: 8 }}>{busy}</div>}

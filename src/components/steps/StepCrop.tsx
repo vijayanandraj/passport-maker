@@ -1,10 +1,16 @@
-import Cropper from "react-easy-crop";
-import { useCallback, useMemo, useRef, useState } from "react";
+import Cropper, { getInitialCropFromCroppedAreaPixels } from "react-easy-crop";
+import type { MediaSize, Size } from "react-easy-crop";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "../../state/store";
 import Slider from "../ui/Slider";
+import CornerTicks from "../ui/CornerTicks";
 import { sizeToPx } from "../../utils/units";
 import { autoEnhanceParamsFromCanvas, applyAdjustmentsToImageData, canvasFromBitmap } from "../../utils/image";
-import { detectFaceOnCanvas } from "../../utils/mediapipe";
+import { measureHead, computeFrame } from "../../utils/autoframe";
+import { findPreset, headTargetFor } from "../../utils/presets";
+
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 8;
 
 export default function StepCrop() {
   const imageUrl = useAppStore(s => s.imageUrl);
@@ -17,16 +23,26 @@ export default function StepCrop() {
   const setCroppedAreaPixels = useAppStore(s => s.setCroppedAreaPixels);
   const adj = useAppStore(s => s.adj);
   const setAdj = useAppStore(s => s.setAdj);
+  const autoFramedFor = useAppStore(s => s.autoFramedFor);
+  const setAutoFramedFor = useAppStore(s => s.setAutoFramedFor);
 
   const px = useMemo(() => sizeToPx(photo.width, photo.height, photo.unit, photo.dpi), [photo]);
   const aspect = useMemo(() => px.w / px.h, [px]);
 
+  const preset = useMemo(() => findPreset(photo.presetId), [photo.presetId]);
+  const headTarget = useMemo(() => headTargetFor(preset), [preset]);
+
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // react-easy-crop reports these once it has laid the image out; both are needed to convert
+  // a crop rectangle in image pixels back into the component's crop/zoom pair.
+  const [mediaSize, setMediaSize] = useState<MediaSize | null>(null);
+  const [cropSize, setCropSize] = useState<Size | null>(null);
 
   const onCropComplete = useCallback((_: any, croppedAreaPixels: any) => {
     setCroppedAreaPixels(croppedAreaPixels);
-    // console.log("croppedAreaPixels", croppedAreaPixels);
   }, [setCroppedAreaPixels]);
 
   const renderPreview = useCallback(() => {
@@ -53,8 +69,8 @@ export default function StepCrop() {
     ctx.putImageData(img, 0, 0);
   }, [imageBitmap, aspect, adj]);
 
-  // Render preview when sliders change
-  useMemo(() => { renderPreview(); }, [renderPreview]);
+  // Render preview on mount and whenever sliders/image change
+  useEffect(() => { renderPreview(); }, [renderPreview]);
 
   const doAutoEnhance = async () => {
     if (!imageBitmap) return;
@@ -68,45 +84,56 @@ export default function StepCrop() {
     }
   };
 
-  const doAutoCenterFace = async () => {
-    if (!imageBitmap) return;
-    setBusy("Detecting face...");
-    try {
-      // use a downscaled canvas for face detection to be faster
-      const maxW = 640;
-      const scale = Math.min(1, maxW / imageBitmap.width);
-      const c = document.createElement("canvas");
-      c.width = Math.round(imageBitmap.width * scale);
-      c.height = Math.round(imageBitmap.height * scale);
-      const ctx = c.getContext("2d")!;
-      ctx.drawImage(imageBitmap, 0, 0, c.width, c.height);
+  /**
+   * Frame the head to passport proportions.
+   *
+   * The head is measured (crown from the segmentation mask, chin from the face box), turned
+   * into a crop rectangle in image pixels, and handed to react-easy-crop's own inverse helper
+   * so the result lands exactly where we computed it.
+   */
+  const applyAutoFrame = useCallback(async (silent = false) => {
+    if (!imageBitmap || !mediaSize || !cropSize) return false;
 
-      const face = await detectFaceOnCanvas(c);
-      if (!face) {
-        alert("No face detected. Try a clearer, front-facing photo.");
-        return;
+    if (!silent) setBusy("Finding the head...");
+    setNotice(null);
+    try {
+      const metrics = await measureHead(imageBitmap);
+      if (!metrics) {
+        if (!silent) setNotice("No face detected — try a clearer, front-facing photo, or crop by hand.");
+        return false;
       }
 
-      const faceCx = (face.x + face.w / 2) / c.width;
-      const faceCy = (face.y + face.h / 2) / c.height;
+      const frame = computeFrame(metrics, aspect, imageBitmap.width, imageBitmap.height, headTarget);
+      const { crop: point, zoom } = getInitialCropFromCroppedAreaPixels(
+        frame,
+        mediaSize,
+        crop.rotation,
+        cropSize,
+        MIN_ZOOM,
+        MAX_ZOOM
+      );
 
-      // Head sizing: smaller number => zoom out => more shoulders
-      const desiredFaceFrac = 0.40; // try 0.38..0.42
-      const faceFrac = face.h / c.height;
-      const zoom = Math.max(1, Math.min(3, faceFrac > 0 ? desiredFaceFrac / faceFrac : 1));
-
-      // Framing bias: move face slightly up in the final frame
-      const shoulderBias = 0.08; // try 0.06..0.12
-
-      // react-easy-crop crop coords are "percent-ish"; these constants are just scaling knobs
-      const dx = (0.5 - faceCx) * 160;
-      const dy = (0.5 - (faceCy - shoulderBias)) * 160;
-
-      setCrop({ cropX: dx, cropY: dy, zoom });
+      setCrop({ cropX: point.x, cropY: point.y, zoom });
+      return true;
+    } catch {
+      if (!silent) setNotice("Could not analyse this photo. Crop by hand instead.");
+      return false;
     } finally {
-      setBusy(null);
+      if (!silent) setBusy(null);
     }
-  };
+  }, [imageBitmap, mediaSize, cropSize, aspect, headTarget, crop.rotation, setCrop]);
+
+  // Frame automatically the first time a photo reaches this step, and again whenever the
+  // chosen country changes, since each country frames the head differently. Manual
+  // adjustments within one country are never overridden.
+  const frameKey = imageUrl ? `${imageUrl}|${photo.presetId ?? "custom"}|${px.w}x${px.h}` : undefined;
+  useEffect(() => {
+    if (!frameKey || !mediaSize || !cropSize) return;
+    if (autoFramedFor === frameKey) return;
+
+    setAutoFramedFor(frameKey);
+    void applyAutoFrame(true);
+  }, [frameKey, mediaSize, cropSize, autoFramedFor, setAutoFramedFor, applyAutoFrame]);
 
   if (!imageUrl) {
     return (
@@ -120,29 +147,35 @@ export default function StepCrop() {
     <div className="row">
       <div className="col grow">
         <div className="cropArea">
+          <CornerTicks />
           <Cropper
             image={imageUrl}
             crop={{ x: crop.cropX, y: crop.cropY }}
             zoom={crop.zoom}
             rotation={crop.rotation}
             aspect={aspect}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
             onCropChange={(c) => setCrop({ cropX: c.x, cropY: c.y })}
             onZoomChange={(z) => setCrop({ zoom: z })}
             onRotationChange={(r) => setCrop({ rotation: r })}
             onCropComplete={onCropComplete}
+            onMediaLoaded={setMediaSize}
+            onCropSizeChange={setCropSize}
             showGrid={false}
             cropShape="rect"
           />
         </div>
 
-        {/* changed: row -> row wrap */}
-        <div className="row wrap" style={{ marginTop: 10 }}>
-          <button className="btn" onClick={() => setStep(1)}>Back</button>
-          <button className="btn good" onClick={doAutoCenterFace} disabled={!!busy}>Auto Center Face</button>
-          <button className="btn good" onClick={doAutoEnhance} disabled={!!busy}>Auto Enhance</button>
+        <div className="toolRow" style={{ marginTop: 10 }}>
+          <button className="btn good" onClick={() => void applyAutoFrame()} disabled={!!busy}>Auto-frame head</button>
+          <button className="btn good" onClick={doAutoEnhance} disabled={!!busy}>Auto enhance</button>
+        </div>
 
+        <div className="actionRow" style={{ marginTop: 10 }}>
+          <button className="btn" onClick={() => setStep(1)}>Back</button>
           <button
-            className="btn primary"
+            className="btn primary grow-action"
             onClick={() => {
               // If user never moved the crop, onCropComplete might not have fired yet.
               // So we nudge zoom slightly to force Cropper to compute pixels, then go next.
@@ -150,28 +183,29 @@ export default function StepCrop() {
               setTimeout(() => setStep(3), 0);
             }}
           >
-            Save & Next
+            Save &amp; next
           </button>
         </div>
 
         {busy && <div className="small" style={{ marginTop: 8 }}>{busy}</div>}
+        {notice && <div className="small" style={{ marginTop: 8, color: "var(--redline)" }}>{notice}</div>}
       </div>
 
-      {/* changed: add rightPane class */}
       <div className="col rightPane" style={{ width: 340 }}>
         <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Adjustments</div>
+          <div className="sectionTitle">Adjustments</div>
           <Slider label="Brightness" value={adj.brightness} min={-100} max={100} onChange={(v) => setAdj({ brightness: v, autoEnhanced: false })} />
           <Slider label="Contrast" value={adj.contrast} min={-100} max={100} onChange={(v) => setAdj({ contrast: v, autoEnhanced: false })} />
           <Slider label="Saturation" value={adj.saturation} min={-100} max={100} onChange={(v) => setAdj({ saturation: v, autoEnhanced: false })} />
 
           <div className="hr" />
-          <div className="small">
-            Output: {px.w} x {px.h}px at {photo.dpi} DPI.
+          <div className="small mono">
+            {px.w} × {px.h}px at {photo.dpi} DPI
           </div>
         </div>
 
-        <div className="card previewBox">
+        <div className="previewBox">
+          <CornerTicks />
           <canvas ref={previewRef} className="previewCanvas" />
         </div>
       </div>

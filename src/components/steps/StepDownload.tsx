@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "../../state/store";
 import { sizeToPx } from "../../utils/units";
 import { getCroppedCanvas } from "../../utils/cropper";
@@ -6,6 +6,8 @@ import { applyAdjustmentsToImageData } from "../../utils/image";
 import { segmentCanvas } from "../../utils/mediapipe";
 import { compositeWithMask } from "../../utils/background";
 import { renderSheet } from "../../utils/sheet";
+import CornerTicks from "../ui/CornerTicks";
+import { GitHubStarCard } from "../ui/GitHubStar";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -75,7 +77,7 @@ export default function StepDownload() {
       mask.height,
       bg.color,
       bg.featherPx,
-      bg.dehalo
+      bg.edgeTighten
     );
 
     return composited;
@@ -124,6 +126,11 @@ export default function StepDownload() {
     }
   };
 
+  useEffect(() => {
+    if (imageBitmap && croppedAreaPixels) void renderPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageBitmap, croppedAreaPixels, bg, adj, crop]);
+
   if (!imageBitmap) {
     return <div className="small">Upload an image in Step 1 first.</div>;
   }
@@ -132,26 +139,29 @@ export default function StepDownload() {
     <div className="row">
       <div className="col grow">
         <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Online submission (single photo)</div>
+          <div className="sectionTitle">Single photo</div>
 
-          {/* changed: row -> row wrap */}
           <div className="row wrap">
-            <button className="btn good" onClick={() => void renderPreview()} disabled={!!busy}>Preview</button>
             <button className="btn primary" onClick={() => void downloadSingle("png")} disabled={!!busy}>Download PNG</button>
             <button className="btn primary" onClick={() => void downloadSingle("jpeg")} disabled={!!busy}>Download JPEG</button>
           </div>
 
-          <div className="small" style={{ marginTop: 8 }}>
-            Output: {outPx.w} x {outPx.h}px at {photo.dpi} DPI
+          <div className="toolRow" style={{ marginTop: 10 }}>
+            <button className="btn good" onClick={() => void renderPreview()} disabled={!!busy}>Refresh preview</button>
+          </div>
+
+          <div className="small mono" style={{ marginTop: 8 }}>
+            {outPx.w} × {outPx.h}px at {photo.dpi} DPI
           </div>
         </div>
 
-        <div className="card previewBox" style={{ marginTop: 12 }}>
+        <div className="previewBox" style={{ marginTop: 12 }}>
+          <CornerTicks />
           <canvas ref={previewRef} className="previewCanvas" />
         </div>
 
         <div className="card" style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Print sheet</div>
+          <div className="sectionTitle">Print sheet</div>
 
           <div className="grid3">
             <div>
@@ -264,27 +274,27 @@ export default function StepDownload() {
           </div>
         </div>
 
-        {/* changed: row -> row wrap */}
         <div className="row wrap" style={{ marginTop: 10 }}>
           <button className="btn" onClick={() => setStep(3)}>Back</button>
-          <button className="btn danger" onClick={() => setStep(1)}>Start Over</button>
+          <button className="btn danger" onClick={() => setStep(1)}>Start over</button>
         </div>
 
         {busy && <div className="small" style={{ marginTop: 8 }}>{busy}</div>}
       </div>
 
-      {/* changed: add sidebar class */}
       <div className="col sidebar" style={{ width: 320 }}>
+        <GitHubStarCard />
+
         <div className="card">
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Quick sanity checks</div>
+          <div className="sectionTitle">If something looks off</div>
           <div className="small">
-            If output looks blurry:
-            <br />- Use higher DPI (300 is usually fine)
-            <br />- Use a higher resolution source photo
+            Blurry output:
+            <br />– use a higher DPI (300 is usually fine)
+            <br />– use a higher-resolution source photo
             <br /><br />
-            If background edges look rough:
-            <br />- Increase Feather
-            <br />- Slightly increase Dehalo
+            Rough background edges:
+            <br />– increase Soften edge
+            <br />– increase Trim edge a little
           </div>
         </div>
       </div>

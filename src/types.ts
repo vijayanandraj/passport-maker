@@ -1,6 +1,7 @@
 export type Unit = "mm" | "cm" | "in" | "px";
 
-export type PresetId = "IN_35x45" | "US_2x2" | "CA_50x70";
+/** Preset identifier — ISO 3166-1 alpha-3 where there is one (see utils/presets.ts). */
+export type PresetId = string;
 
 export type PhotoSpec = {
   presetId?: PresetId;
@@ -30,8 +31,8 @@ export type BackgroundSpec = {
   mode: BackgroundMode;
   color: string;
   featherPx: number;
-  dehalo: number;
-  writeNameDate: boolean;
+  /** 0..1 — pulls the cut-out edge in to remove a colour fringe, without eroding the mask. */
+  edgeTighten: number;
 };
 
 

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Adjustments, BackgroundSpec, CropState, PhotoSpec, SheetSpec, WizardStep } from "../types";
 import { decodeStateFromUrl, encodeStateToUrl } from "../utils/share";
-import { DEFAULT_PRESETS } from "../utils/presets";
+import { findPreset } from "../utils/presets";
 
 type AppState = {
   step: WizardStep;
@@ -29,7 +29,11 @@ type AppState = {
   // cached render
   lastRenderUrl?: string;
 
+  /** imageUrl that has already been auto-framed, so we only do it once per photo. */
+  autoFramedFor?: string;
+
   setStep: (s: WizardStep) => void;
+  setAutoFramedFor: (url?: string) => void;
 
   setImageFile: (file?: File) => Promise<void>;
   setPhoto: (p: Partial<PhotoSpec>) => void;
@@ -44,7 +48,7 @@ type AppState = {
 };
 
 const defaultPhoto: PhotoSpec = {
-  presetId: "IN_35x45",
+  presetId: "SCHENGEN",
   width: 35,
   height: 45,
   unit: "mm",
@@ -58,9 +62,10 @@ const defaultAdj: Adjustments = { brightness: 0, contrast: 0, saturation: 0, aut
 const defaultBg: BackgroundSpec = {
   mode: "REMOVED",
   color: "#ffffff",
-  featherPx: 2,
-  dehalo: 0.35,
-  writeNameDate: false
+  // Matting already produces a properly soft edge; extra blur only smears hair detail.
+  featherPx: 0,
+  // Deliberately low: higher values trade hair detail for a cleaner fringe.
+  edgeTighten: 0.15
 };
 
 const defaultSheet: SheetSpec = {
@@ -82,6 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sheet: { ...defaultSheet },
 
   setStep: (s) => set({ step: s }),
+  setAutoFramedFor: (url) => set({ autoFramedFor: url }),
 
   setImageFile: async (file?: File) => {
     const prevUrl = get().imageUrl;
@@ -98,6 +104,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       imageFile: file,
       imageUrl: url,
       imageBitmap: bitmap,
+      // A new photo starts from a clean crop; the old one's framing means nothing here.
+      crop: { ...defaultCrop },
+      croppedAreaPixels: undefined,
+      autoFramedFor: undefined,
       step: 2
     });
   },
@@ -105,7 +115,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPhoto: (p) => {
     const next = { ...get().photo, ...p };
     if (p.presetId) {
-      const preset = DEFAULT_PRESETS.find(x => x.id === p.presetId);
+      const preset = findPreset(p.presetId);
       if (preset) {
         next.width = preset.width;
         next.height = preset.height;
